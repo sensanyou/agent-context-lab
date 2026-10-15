@@ -5,6 +5,14 @@
 """
 
 from typing import Any
+from transformers import AutoTokenizer
+
+# 使用 DeepSeek V4 Flash 的 Tokenizer
+# cspell:ignore deepseek
+_TOKENIZER = AutoTokenizer.from_pretrained(
+    "deepseek-ai/DeepSeek-V4-Flash"
+)
+
 
 
 Message = dict[str, Any]
@@ -54,22 +62,38 @@ def trim_history(messages: list[Message], max_turns: int = 6) -> list[Message]:
     return system_messages + [message for turn in kept_turns for message in turn]
 
 
-def estimate_context_chars(messages: list[Message]) -> int:
-    """粗略统计消息内容的字符数，不等于 Token 数。"""
-    total = 0
+
+def estimate_context_tokens(messages: list[Message]) -> int:
+    """粗略估算消息内容的 Token 数量，不等于 API 实际用量。"""
+    text_parts = []
 
     for message in messages:
-        content = message.get("content") or ""
-        total += len(str(content))
+        # 统计角色
+        text_parts.append(str(message.get("role", "")))
 
-        # 工具调用参数也会占用上下文
+        # 统计消息正文
+        content = message.get("content")
+        if content is not None:
+            text_parts.append(str(content))
+
+        # 统计工具调用
         for tool_call in message.get("tool_calls") or []:
+            text_parts.append(str(tool_call.get("id", "")))
+            text_parts.append(str(tool_call.get("type", "")))
+
             function = tool_call.get("function") or {}
-            total += len(str(function.get("name") or ""))
-            total += len(str(function.get("arguments") or ""))
+            text_parts.append(str(function.get("name", "")))
+            text_parts.append(str(function.get("arguments", "")))
 
-    return total
+        # 统计工具调用结果关联 ID
+        if message.get("role") == "tool":
+            text_parts.append(str(message.get("tool_call_id", "")))
 
+    text = "\n".join(text_parts)
+
+    return len(
+        _TOKENIZER.encode(text, add_special_tokens=False)
+    )
 
 def validate_tool_calls(messages: list[Message]) -> bool:
     """检查工具调用和工具结果是否完整匹配。"""
