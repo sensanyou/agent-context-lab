@@ -15,8 +15,8 @@ from ..storage import Database, pack_vector, unpack_vector
 from ..types import Chunk, Document, ScoredChunk, new_id
 from .bm25 import BM25Index
 from .chunker import TextChunk, chunk_loaded_file, chunk_text
-from .embeddings import Embedder, HashingEmbedder, build_embedder
-from .loaders import LoadedFile, file_id, iter_files, load_file
+from .embeddings import Embedder, build_embedder
+from .loaders import LoadedFile, content_hash, file_id, iter_files, load_file
 from .retriever import HybridRetriever
 from .vector_store import InMemoryVectorStore
 
@@ -35,10 +35,13 @@ class KnowledgeBase:
         self.retrieval_settings: RetrievalSettings = self.settings.retrieval
         self.db = db
 
-        self.embedder = embedder or (
-            build_embedder(llm, dim=self.retrieval_settings.embedding_dim)
-            if llm is not None
-            else HashingEmbedder(dim=self.retrieval_settings.embedding_dim)
+        # 向量化的选择交给 build_embedder：它会按 embedding_mode 决定用远程还是
+        # 离线，并在远程不可用时**降级且保留原因**（见 rag/embeddings.py 的说明）。
+        # 传 settings 是关键 —— 向量化模式与聊天模型是两条独立的开关。
+        self.embedder = embedder or build_embedder(
+            llm,
+            dim=self.retrieval_settings.embedding_dim,
+            settings=self.settings,
         )
 
         self.store = InMemoryVectorStore(dim=self.embedder.dim)
@@ -123,6 +126,26 @@ class KnowledgeBase:
         with self.db.transaction() as conn:
             conn.execute("DELETE FROM chunks")
             conn.execute("DELETE FROM documents")
+
+    def deduplicate(self) -> int:
+        """按正文指纹清掉重复文档，返回删除数量。保留最新的一份。
+
+        典型场景：项目目录被重命名过（`file_id` 依赖绝对路径），
+        同一批文件因此被重复导入。
+        """
+        rows = self.db.query(
+            "SELECT doc_id, text FROM documents ORDER BY created_at DESC"
+        )
+        seen: set[str] = set()
+        removed = 0
+        for row in rows:
+            digest = content_hash(row["text"] or "")
+            if digest in seen:
+                if self.delete_document(row["doc_id"]):
+                    removed += 1
+                continue
+            seen.add(digest)
+        return removed
 
     # ------------------------------------------------------------------ #
     # 读取
@@ -246,6 +269,27 @@ class KnowledgeBase:
     # ------------------------------------------------------------------ #
     # 内部
     # ------------------------------------------------------------------ #
+    def _drop_duplicate_content(self, digest: str, text: str, keep: str) -> list[str]:
+        """删除与 `digest` 内容相同的其他文档，返回被删掉的 doc_id。
+
+        老数据（本次改动之前导入的）没有 `content_hash` 字段，
+        这时直接用正文现算一次指纹 —— 否则重命名造成的重复记录永远不会被清理。
+        """
+        rows = self.db.query(
+            "SELECT doc_id, text, metadata FROM documents WHERE doc_id != ?", (keep,)
+        )
+        removed: list[str] = []
+        for row in rows:
+            stored = self.db.load_json(row["metadata"], {}).get("content_hash")
+            same = (
+                stored == digest
+                if stored
+                else content_hash(row["text"] or "") == digest
+            )
+            if same and self.delete_document(row["doc_id"]):
+                removed.append(row["doc_id"])
+        return removed
+
     def _add_loaded(self, loaded: LoadedFile) -> Document:
         chunks = chunk_loaded_file(
             loaded,
@@ -273,6 +317,13 @@ class KnowledgeBase:
 
         if replace:
             self.delete_document(doc_id)
+
+        # 内容去重。`doc_id` 由绝对路径派生，项目目录一改名就会生成新 id，
+        # 旧记录不会被替换，于是同一份内容在库里留两份、检索时返回近似重复命中。
+        # 这里按正文指纹消除它，并顺手清掉旧版本留下的、没有指纹字段的历史数据。
+        digest = content_hash(document.text)
+        self._drop_duplicate_content(digest, document.text, keep=doc_id)
+        document.metadata["content_hash"] = digest
 
         now = time.time()
         records: list[tuple[Chunk, list[float]]] = []

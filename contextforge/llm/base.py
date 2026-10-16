@@ -30,7 +30,8 @@ class BaseLLM(abc.ABC):
     # -- 可选能力：真实模型才有，Mock 会退化为本地实现 ---------------------- #
     supports_embeddings: bool = False
 
-    def embed(self, texts: list[str]) -> list[list[float]]:  # pragma: no cover - 默认不支持
+    def embed(self, texts: list[str], timeout: float | None = None) -> list[list[float]]:
+        """向量化一批文本。`timeout` 是**单次请求**的超时覆盖（秒）。"""
         raise NotImplementedError(f"{self.name} 不支持向量化")
 
     def describe(self) -> dict[str, Any]:

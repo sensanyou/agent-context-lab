@@ -39,6 +39,7 @@ class OpenAICompatibleLLM(BaseLLM):
             raise LLMError("缺少 API Key")
 
         self.model = model
+        self.base_url = base_url
         self.embedding_model = embedding_model
         self.temperature = temperature
         self.max_retries = max_retries
@@ -108,14 +109,16 @@ class OpenAICompatibleLLM(BaseLLM):
         )
 
     # ------------------------------------------------------------------ #
-    def embed(self, texts: list[str]) -> list[list[float]]:
+    def embed(self, texts: list[str], timeout: float | None = None) -> list[list[float]]:
+        """向量化。`timeout` 用于覆盖**单次请求**超时 —— 启动时的连通性探测
+        靠它避免在端点不可达时把整个启动过程卡住。"""
         if not texts:
             return []
+        kwargs: dict[str, Any] = {"model": self.embedding_model, "input": texts}
+        if timeout is not None:
+            kwargs["timeout"] = timeout
         try:
-            response = self._client.embeddings.create(
-                model=self.embedding_model,
-                input=texts,
-            )
+            response = self._client.embeddings.create(**kwargs)
         except Exception as exc:  # noqa: BLE001
             raise LLMError(f"向量化失败：{exc}") from exc
         return [item.embedding for item in response.data]
@@ -125,5 +128,6 @@ class OpenAICompatibleLLM(BaseLLM):
             "name": self.name,
             "model": self.model,
             "online": True,
+            "base_url": self.base_url,
             "embedding_model": self.embedding_model,
         }

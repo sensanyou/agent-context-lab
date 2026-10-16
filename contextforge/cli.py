@@ -38,6 +38,20 @@ def _print_header(runtime: AgentRuntime) -> None:
     info = runtime.llm.describe()
     mode = "在线模型" if info.get("online") else "离线确定性模型"
     print(f"模型：{info.get('name')}（{mode}）")
+
+    # 向量化和聊天是两条独立开关，这里显式报出来 —— 降级不应该被静默吞掉。
+    embedder = runtime.knowledge.embedder.describe()
+    if embedder.get("degraded"):
+        print(
+            f"向量：已降级到 {embedder.get('name')}（原因：{embedder.get('degraded_reason')}）"
+        )
+        print(f"      {embedder.get('degraded_hint', '')}")
+    else:
+        print(
+            f"向量：{embedder.get('name')}"
+            f"（mode={embedder.get('mode')}, dim={embedder.get('dim')}）"
+        )
+
     print(f"工具：{', '.join(runtime.tools.names())}")
     print(f"知识库：{runtime.knowledge.stats()['documents']} 篇文档 / {runtime.knowledge.stats()['chunks']} 个切片")
 

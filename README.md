@@ -237,6 +237,29 @@ CONTEXTFORGE_EMBEDDING_MODEL=text-embedding-3-small
 > 注意：`settings.model.api_key` 为空时**不会抛异常**，而是降级到离线模型，
 > 因此整个项目在没有 Key、没有网络的环境下依然可以完整运行。
 
+#### 向量化是**独立**的一条开关
+
+「有 Key」不等于「这个服务提供 `/embeddings` 接口」。例如 DeepSeek 只提供
+chat，没有 embeddings —— 如果向量化跟着聊天模式一起切到远程，导入文档会直接
+404。所以向量化单独配置：
+
+```env
+CONTEXTFORGE_EMBEDDING_MODE=auto     # auto（默认）| local | remote
+CONTEXTFORGE_EMBEDDING_BASE_URL=     # 可选：向量单独用另一个服务
+CONTEXTFORGE_EMBEDDING_API_KEY=      # 可选
+CONTEXTFORGE_EMBEDDING_PROBE_TIMEOUT=10
+```
+
+| 模式 | 行为 |
+| --- | --- |
+| `auto`（默认） | 启动时**真的发一次探测请求**；通了用远程，不通自动降级到离线向量 |
+| `local` | 强制离线 hashing 向量：零网络、零费用、结果确定 |
+| `remote` | 强制远程；不可用时同样降级，而不是让系统起不来 |
+
+降级**不是静默的**：`python -m contextforge status`、`/api/status` 的
+`embeddings` 字段、以及 Web 的「系统状态」页都会显示
+`degraded: true` 和具体原因。检索链路在降级后完全可用，只是退化为字面级匹配。
+
 ---
 
 ## 七、Web 界面
@@ -285,7 +308,7 @@ python experiments/05_context_compression.py   # 单独跑
 
 ```bash
 .venv/Scripts/python.exe -m pytest tests/ -q
-# 203 passed
+# 242 passed
 ```
 
 全部测试**离线运行**，不依赖网络与 API Key。覆盖：
@@ -301,6 +324,8 @@ python experiments/05_context_compression.py   # 单独跑
 | `test_evaluation.py` | 指标数学、运行器、报告渲染（含指标边界回归） |
 | `test_api.py` | 处理器层 + 真实 HTTP 服务 + SSE 流式事件 |
 | `test_cli.py` | 子命令注册、三种输出格式、无 API Key 下的可用性 |
+| `test_embedding_mode.py` | 向量化三模式选择、探测、降级可见性、独立向量端点 |
+| `test_document_identity.py` | 正文指纹去重、历史脏数据自愈、切片/向量/BM25 同步清理 |
 
 ---
 
@@ -364,7 +389,7 @@ contextforge/                  # 核心包（零外部服务依赖）
 web/                           # Vue 3 前端（Vue 运行时已本地化）
 experiments/                   # 9 个可复现实验
 examples/                      # 示例文档与示例代码仓库
-tests/                         # 203 个离线测试
+tests/                         # 242 个离线测试
 ```
 
 ---

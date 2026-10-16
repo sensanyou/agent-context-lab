@@ -228,6 +228,39 @@ token → blake2b 摘要 → 取模得到桶位 → 按摘要奇偶决定正负 
 **这是整个项目在工程态度上最想表达的一点**：
 一个能说清自己边界的项目，比一个到处都「效果显著」的项目可信。
 
+#### 推论：向量化模式必须独立于聊天模型
+
+**当时怎么写的.** 判断向量化用远程还是离线，看的是 `llm.supports_embeddings`
+这个**声明**；而外面那层 `try/except` 包住的是**构造** `RemoteEmbedder`
+这个动作，构造时并不发请求 —— 所以它永远成功、也永远兜不住真正的失败。
+
+**后果.** 只要配上任意一个 OpenAI 兼容服务的 Key，就等价于断言
+「这个服务一定有 `/embeddings`」。DeepSeek 只有 chat，于是：
+
+```
+配 Key → 在线 → 声明支持向量 → 发 POST /embeddings → 404
+```
+
+而且这个 404 出现在**导入文档**的时候，离「配置」这个真正的原因非常远，
+从 traceback 上根本看不出是配置问题。
+
+**改法.** 把「声明」换成「实测」，并把模式与聊天解耦：
+
+| 模式 | 行为 |
+| --- | --- |
+| `local` | 直接用离线向量，一个网络请求都不发 |
+| `auto` | 启动时真发一次探测（带独立超时）；失败就降级 |
+| `remote` | 强制远程；不可用时**也降级**，绝不让系统起不来 |
+
+**代价.** 每次进程启动多一次极小的网络往返（结果按
+`base_url|embedding_model` 缓存在进程内，只发生一次）；
+`local` 模式下一个请求都不发。
+
+**收获.** 降级从「静默」变成「可见」：`describe()` 会带上
+`degraded / degraded_from / degraded_reason / degraded_hint`，
+命令行头部、`/api/status`、Web 的「系统状态」页三处都能看到。
+一个降级如果不被看见，它迟早会被当成「检索本来就不好用」。
+
 ---
 
 ### 决策 6：离线 Mock LLM 是「确定性规则引擎」，而不是「假数据」
@@ -376,9 +409,18 @@ SQLite（WAL 模式 + 外键约束 + 线程锁），10 张表：
 | 7 | 图节点路径不能靠 span 的 `kind` 推断 | 轨迹只显示部分节点 | 节点显式写 `span.attributes["node"]` |
 | 8 | 一次审批调用不得污染进程内共享配置 | 后续请求全部要求审批 | `runtime.py` 用 `dataclasses.replace` 造副本 |
 | 9 | SQLite 连接必须显式关闭 | Windows 上临时目录删不掉 | `Database.close()` / `experiments/_lab.offline_runtime` |
+| 10 | 「支持某能力」的**声明**不能当作能力可用的证据 | 配了 Key 但服务没有 `/embeddings` → 导入文档 404 | `rag/embeddings.py::build_embedder` 启动时真探测 |
+| 11 | 向量化模式与聊天模型必须相互独立 | 换一个 chat 服务就顺带打断 RAG | `ModelSettings.embedding_mode` |
+| 12 | 文档身份不能只依赖绝对路径 | 项目改名 → 知识库静默翻倍、检索返回重复命中 | `rag/pipeline.py::_drop_duplicate_content` 按正文指纹消重 |
 
 第 2、3 条是**实测踩出来的**：它们都不会让程序崩溃，
 只会让指标悄悄变得不可信 —— 这类 bug 最难发现，所以都补了回归测试。
+
+第 10～12 条同样来自实测：第 10、11 条源于「配了 DeepSeek 的 Key 之后
+`demo` 报 404」；第 12 条源于「把项目目录从 `agent-context-lab` 改名为
+`ContextForge` 之后，4 篇文档变成 8 篇」。它们的共同特征是
+**不报错、只是悄悄变坏**，所以都改成了「显式可见」：
+降级写进 `/api/status` 的 `embeddings` 字段，重复内容在每次导入时自动清理。
 
 ---
 

@@ -61,6 +61,10 @@ def _env_bool(name: str, default: bool) -> bool:
     return raw in {"1", "true", "yes", "on"}
 
 
+#: 向量化的三种模式，含义见 `ModelSettings.embedding_mode`。
+EMBEDDING_MODES = ("auto", "local", "remote")
+
+
 @dataclass
 class ModelSettings:
     """模型与计费配置。"""
@@ -72,6 +76,20 @@ class ModelSettings:
     temperature: float = 0.2
     request_timeout: float = 60.0
 
+    # -- 向量化：与「聊天模型」相互独立的一条开关 -------------------------- #
+    # 为什么要独立？因为「有 API Key」不等于「这个服务提供 /embeddings 接口」。
+    # 例如 DeepSeek 只提供 chat，没有 embeddings —— 一旦跟着聊天模式一起切到
+    # 远程，导入文档会直接 404。所以这里单独给一个模式：
+    #   auto   —— 探测远程是否可用，可用就用；不可用自动降级到离线（默认）
+    #   local  —— 强制离线 hashing 向量：零网络、零费用、结果确定
+    #   remote —— 强制远程：需要服务确实提供 `/embeddings`
+    embedding_mode: str = "auto"
+    # 可选的独立向量服务端点：聊天用一个服务、向量用另一个服务时填写。
+    embedding_base_url: str = ""
+    embedding_api_key: str = ""
+    # 探测远程向量端点时的超时（秒）。端点不可达时不应让启动卡住。
+    embedding_probe_timeout: float = 10.0
+
     # 用于成本估算（元 / 千 token），默认取一个量级参考值，可在 .env 覆盖。
     price_in_per_1k: float = 0.001
     price_out_per_1k: float = 0.002
@@ -79,6 +97,24 @@ class ModelSettings:
     @property
     def online(self) -> bool:
         return bool(self.api_key)
+
+    @property
+    def normalized_embedding_mode(self) -> str:
+        """归一化向量化模式；非法值按 auto 处理，不抛异常。"""
+        mode = (self.embedding_mode or "").strip().lower()
+        return mode if mode in EMBEDDING_MODES else "auto"
+
+    @property
+    def has_separate_embedding_endpoint(self) -> bool:
+        """是否单独配置了向量服务地址。"""
+        return bool(self.embedding_base_url or self.embedding_api_key)
+
+    def embedding_endpoint(self) -> tuple[str, str]:
+        """返回向量化实际使用的 (base_url, api_key)。"""
+        return (
+            self.embedding_base_url or self.base_url,
+            self.embedding_api_key or self.api_key,
+        )
 
 
 @dataclass
@@ -174,6 +210,10 @@ class Settings:
                     _env_str("DEEPSEEK_MODEL", "deepseek-chat"),
                 ),
                 embedding_model=_env_str("CONTEXTFORGE_EMBEDDING_MODEL", "text-embedding-3-small"),
+                embedding_mode=_env_str("CONTEXTFORGE_EMBEDDING_MODE", "auto"),
+                embedding_base_url=_env_str("CONTEXTFORGE_EMBEDDING_BASE_URL", ""),
+                embedding_api_key=_env_str("CONTEXTFORGE_EMBEDDING_API_KEY", ""),
+                embedding_probe_timeout=_env_float("CONTEXTFORGE_EMBEDDING_PROBE_TIMEOUT", 10.0),
                 temperature=_env_float("CONTEXTFORGE_TEMPERATURE", 0.2),
                 price_in_per_1k=_env_float("CONTEXTFORGE_PRICE_IN", 0.001),
                 price_out_per_1k=_env_float("CONTEXTFORGE_PRICE_OUT", 0.002),

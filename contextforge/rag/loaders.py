@@ -129,6 +129,18 @@ def file_id(path: str | Path) -> str:
     return f"doc_{digest}"
 
 
+def content_hash(text: str) -> str:
+    """正文指纹。
+
+    用途：`file_id` 由**绝对路径**派生，所以项目目录一改名（例如
+    `agent-context-lab` → `ContextForge`），同一份文件就会拿到新 id，
+    旧记录不会被覆盖 —— 知识库里于是留下两份一样的内容，
+    检索时返回近似重复的命中。指纹与路径无关，正好用来识别这种情况。
+    """
+    digest = hashlib.blake2b((text or "").encode("utf-8"), digest_size=16).hexdigest()
+    return f"h_{digest}"
+
+
 def _skip(path: Path, reason: str) -> LoadedFile:
     return LoadedFile(
         path=Path(path), title=Path(path).name, text="", skipped_reason=reason

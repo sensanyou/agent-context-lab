@@ -419,13 +419,23 @@
           <h2>组件</h2>
           <div class="kv">
             <div class="k">模型</div><div class="mono">{{ status.llm && status.llm.name }} · {{ status.llm && status.llm.model }}</div>
-            <div class="k">向量化</div><div class="mono">{{ status.embeddings && status.embeddings.name }} · {{ status.embeddings && status.embeddings.dim }} 维</div>
+            <div class="k">向量化</div>
+            <div class="mono">
+              {{ status.embeddings && status.embeddings.name }} · {{ status.embeddings && status.embeddings.dim }} 维
+              <span v-if="status.embeddings && status.embeddings.degraded" class="chip warn" style="margin-left:6px">已降级</span>
+            </div>
             <div class="k">知识库</div><div class="mono">{{ status.knowledge && status.knowledge.documents }} 篇 / {{ status.knowledge && status.knowledge.chunks }} 切片</div>
             <div class="k">长期记忆</div><div class="mono">{{ (status.memory && status.memory.long_term.total) || 0 }} 条</div>
             <div class="k">技能</div><div class="mono">{{ (status.memory && status.memory.skills) || 0 }} 个</div>
             <div class="k">代码仓库</div><div class="mono">{{ status.repo || '未配置' }}</div>
           </div>
           <div v-if="status.llm && status.llm.note" class="hint">{{ status.llm.note }}</div>
+          <!-- 向量化降级不能只在日志里 —— 它是「有 Key 但服务不提供 /embeddings」的典型症状 -->
+          <div v-if="status.embeddings && status.embeddings.degraded" class="hint" style="border-left:3px solid #d97706;padding-left:8px;margin-top:8px">
+            <strong>向量化已从 {{ status.embeddings.degraded_from }} 降级</strong><br>
+            原因：{{ status.embeddings.degraded_reason }}<br>
+            {{ status.embeddings.degraded_hint }}
+          </div>
         </div>
         <div class="card">
           <h2>工作流节点</h2>

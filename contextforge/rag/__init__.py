@@ -2,7 +2,16 @@
 
 from .bm25 import BM25Index
 from .chunker import TextChunk, chunk_code, chunk_loaded_file, chunk_text
-from .embeddings import Embedder, HashingEmbedder, RemoteEmbedder, build_embedder
+from .embeddings import (
+    DEFAULT_DIM,
+    PROBE_TEXT,
+    Embedder,
+    EmbeddingError,
+    HashingEmbedder,
+    RemoteEmbedder,
+    build_embedder,
+    reset_probe_cache,
+)
 from .loaders import LoadedFile, file_id, iter_files, load_file
 from .pipeline import KnowledgeBase
 from .retriever import HeuristicReranker, HybridRetriever, reciprocal_rank_fusion
@@ -11,7 +20,10 @@ from .vector_store import InMemoryVectorStore, VectorStore
 
 __all__ = [
     "BM25Index",
+    "DEFAULT_DIM",
+    "PROBE_TEXT",
     "Embedder",
+    "EmbeddingError",
     "HashingEmbedder",
     "HeuristicReranker",
     "HybridRetriever",
@@ -29,5 +41,6 @@ __all__ = [
     "iter_files",
     "load_file",
     "reciprocal_rank_fusion",
+    "reset_probe_cache",
     "tokenize",
 ]
