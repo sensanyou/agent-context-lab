@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ContextForge · Knowledge · Agent · Context Engineering</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --panel-2:#fbfcfd; --line:#e4e7ec;
+    --text:#1f2430; --muted:#697386; --faint:#98a2b3;
+    --brand:#2f6df6; --brand-soft:#eaf0ff;
+    --ok:#0f9d58; --warn:#c47f00; --bad:#d64545;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --r:10px; --shadow:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6}
+  button{font-family:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--text);padding:7px 13px;border-radius:8px;transition:.15s}
+  button:hover{border-color:#c8cfda;background:#fafbfc}
+  button.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  button.primary:hover{background:#2559d6}
+  button.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+  button.ghost:hover{background:#eef1f6;color:var(--text)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  input,textarea,select{font-family:inherit;font-size:13px;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--text);outline:none}
+  input:focus,textarea:focus,select:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  textarea{resize:vertical;line-height:1.6}
+  .app{display:grid;grid-template-columns:224px 1fr;min-height:100vh}
+  aside{background:var(--panel);border-right:1px solid var(--line);padding:18px 14px;position:sticky;top:0;height:100vh;overflow:auto}
+  .logo{display:flex;align-items:center;gap:9px;margin:0 4px 4px}
+  .logo .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#2f6df6,#7aa2ff);display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px}
+  .logo b{font-size:15px;letter-spacing:.2px}
+  .logo small{display:block;color:var(--faint);font-size:11px;font-weight:400;letter-spacing:.3px}
+  nav{margin-top:18px;display:flex;flex-direction:column;gap:2px}
+  nav button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;background:transparent;padding:9px 10px;border-radius:8px;color:var(--muted);font-size:13.5px}
+  nav button:hover{background:#f2f4f8;color:var(--text)}
+  nav button.on{background:var(--brand-soft);color:var(--brand);font-weight:600}
+  nav .ico{width:16px;text-align:center;opacity:.85}
+  .side-foot{position:absolute;bottom:16px;left:14px;right:14px;font-size:11.5px;color:var(--faint)}
+  main{padding:22px 26px 48px;max-width:1180px}
+  h1{font-size:19px;margin:0 0 3px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+  .card h2{font-size:14px;margin:0 0 12px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .stat{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:11px 13px}
+  .stat .k{color:var(--muted);font-size:11.5px;letter-spacing:.2px}
+  .stat .v{font-size:19px;font-weight:650;margin-top:2px;font-variant-numeric:tabular-nums}
+  .stat .v small{font-size:12px;font-weight:400;color:var(--muted)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .row.tight{gap:6px}
+  .grow{flex:1}
+  .chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;background:#eef1f6;color:var(--muted);border:1px solid transparent}
+  .chip.brand{background:var(--brand-soft);color:var(--brand)}
+  .chip.ok{background:#e9f7ef;color:var(--ok)}
+  .chip.bad{background:#fdecec;color:var(--bad)}
+  .chip.warn{background:#fdf4e3;color:var(--warn)}
+  .msgs{display:flex;flex-direction:column;gap:12px}
+  .msg{display:flex;gap:11px}
+  .avatar{flex:0 0 28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:600}
+  .avatar.user{background:#eef1f6;color:#475467}
+  .avatar.bot{background:var(--brand-soft);color:var(--brand)}
+  .bubble{flex:1;min-width:0}
+  .bubble .who{font-size:12px;color:var(--faint);margin-bottom:3px}
+  .bubble .body{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 13px;white-space:pre-wrap;word-break:break-word}
+  .bubble.user .body{background:#f3f6fb;border-color:#e2e9f6}
+  .mono{font-family:var(--mono);font-size:12px}
+  pre{background:#f8f9fb;border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow:auto;font-family:var(--mono);font-size:11.5px;line-height:1.55;margin:0;max-height:340px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;background:var(--panel-2);font-size:11.5px;text-transform:none}
+  tr:last-child td{border-bottom:0}
+  .empty{color:var(--faint);font-size:13px;padding:16px 4px;text-align:center}
+  .bar{height:7px;border-radius:4px;background:#eceff4;overflow:hidden;display:flex}
+  .bar span{display:block;height:100%}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:8px}
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+  .tl{position:relative;padding-left:16px}
+  .tl:before{content:"";position:absolute;left:5px;top:4px;bottom:4px;width:1px;background:var(--line)}
+  .tl .it{position:relative;padding:5px 0}
+  .tl .it:before{content:"";position:absolute;left:-14px;top:12px;width:7px;height:7px;border-radius:50%;background:#cbd3e1;border:2px solid #fff}
+  .tl .it.on:before{background:var(--brand)}
+  .tl .it.tool:before{background:var(--warn)}
+  .tl .it.err:before{background:var(--bad)}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:12.5px}
+  .kv .k{color:var(--muted)}
+  .hint{color:var(--faint);font-size:12px;margin-top:6px}
+  .err{background:#fdecec;border:1px solid #f6cfcf;color:#8f2b2b;border-radius:8px;padding:9px 11px;font-size:12.5px;margin-bottom:10px}
+  .spin{display:inline-block;width:11px;height:11px;border:2px solid var(--brand-soft);border-top-color:var(--brand);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-1px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media (max-width:960px){.app{grid-template-columns:1fr}aside{position:static;height:auto}.grid2,.grid3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="app" class="app">
+  <aside>
+    <div class="logo">
+      <div class="mark">CF</div>
+      <div><b>ContextForge</b><small>Knowledge · Agent · Context</small></div>
+    </div>
+    <nav>
+      <button v-for="t in tabs" :key="t.id" :class="{on:tab===t.id}" @click="go(t.id)">
+        <span class="ico">{{ t.icon }}</span>{{ t.label }}
+        <span v-if="t.id==='eval' && evaluating" class="spin" style="margin-left:auto"></span>
+      </button>
+    </nav>
+    <div class="side-foot">
+      <div>{{ status.llm ? (status.llm.online ? '在线模型' : '离线确定性模型') : '加载中…' }}</div>
+      <div class="mono" style="font-size:10.5px">{{ status.version || '' }}</div>
+    </div>
+  </aside>
+
+  <main>
+    <div v-if="error" class="err">{{ error }}</div>
+
+    <!-- ============ 对话 ============ -->
+    <template v-if="tab==='chat'">
+      <h1>对话</h1>
+      <div class="sub">规划 → 检索 → 组装上下文 → 推理 → 工具 → 反思，每一轮的上下文都受统一预算约束。</div>
+
+      <div class="card">
+        <div class="msgs">
+          <div v-if="!messages.length" class="empty">
+            试着问：<span class="mono">为什么上下文压缩必须以轮次为单位？</span>
+          </div>
+          <div v-for="(m,i) in messages" :key="i" class="msg" :class="m.role">
+            <div class="avatar" :class="m.role">{{ m.role==='user' ? '我' : 'CF' }}</div>
+            <div class="bubble" :class="m.role">
+              <div class="who">{{ m.role==='user' ? '你' : 'ContextForge' }}<span v-if="m.meta" class="mono" style="margin-left:8px">{{ m.meta }}</span></div>
+              <div class="body">{{ m.content }}<span v-if="m.streaming" class="spin" style="margin-left:6px"></span></div>
+              <div v-if="m.citations && m.citations.length" class="hint">
+                引用：<span v-for="c in m.citations" :key="c.chunk_id" class="chip brand" style="margin-right:4px">{{ c.label }} · {{ c.score.toFixed(2) }}</span>
+              </div>
+              <div v-if="m.tools && m.tools.length" class="hint">
+                工具：<span v-for="t in m.tools" :key="t.tool_call_id" class="chip" :class="t.ok?'ok':'bad'" style="margin-right:4px">{{ t.tool_name }}{{ t.ok ? '' : ' 失败' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <select v-model="chatMode" style="width:150px">
+            <option value="hybrid">混合检索</option>
+            <option value="dense">仅向量</option>
+            <option value="sparse">仅 BM25</option>
+          </select>
+          <select v-model="chatStrategy" style="width:170px">
+            <option value="">压缩策略：默认</option>
+            <option value="none">none 不压缩</option>
+            <option value="sliding">sliding 滑动窗口</option>
+            <option value="summary">summary 摘要</option>
+            <option value="hybrid">hybrid 混合</option>
+          </select>
+          <input class="grow" v-model="chatInput" placeholder="输入问题，回车发送" @keydown.enter="send" />
+          <button class="primary" :disabled="sending || !chatInput.trim()" @click="send">
+            <span v-if="sending"><span class="spin"></span> 执行中</span><span v-else>发送</span>
+          </button>
+          <button class="ghost" @click="resetChat">清空</button>
+        </div>
+        <div class="hint">发送后会实时显示图节点的执行过程（SSE 流式）。</div>
+      </div>
+
+      <div v-if="live.length" class="card">
+        <h2>执行过程 <span class="chip">{{ live.length }} 个事件</span></h2>
+        <div class="tl">
+          <div v-for="(e,i) in live" :key="i" class="it" :class="evClass(e)">
+            <b class="mono">{{ e.node || e.type }}</b>
+            <span class="chip" style="margin-left:6px">{{ e.type }}</span>
+            <span v-if="e.detail && Object.keys(e.detail).length" class="mono" style="color:var(--muted);margin-left:6px">{{ brief(e.detail) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="lastResult && lastResult.context_report" class="card">
+        <h2>本轮上下文构建报告</h2>
+        <div class="grid3">
+          <div class="stat"><div class="k">压缩前 → 后</div><div class="v">{{ lastResult.context_report.tokens_before }} <small>→</small> {{ lastResult.context_report.tokens_after }}</div></div>
+          <div class="stat"><div class="k">压缩率</div><div class="v">{{ (lastResult.context_report.compression_ratio*100).toFixed(1) }}<small>%</small></div></div>
+          <div class="stat"><div class="k">工具链完整</div><div class="v">{{ lastResult.context_report.tool_integrity_ok ? '是' : '否' }}</div></div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="bar">
+            <span v-for="(v,k) in lastResult.context_report.sections" :key="k"
+                  :style="{width: pct(v)+'%', background: colorOf(k)}"></span>
+          </div>
+          <div class="legend">
+            <span v-for="(v,k) in lastResult.context_report.sections" :key="k">
+              <i :style="{background: colorOf(k)}"></i>{{ k }} · {{ v }}
+            </span>
+          </div>
+        </div>
+        <div v-if="lastResult.context_report.notes.length" class="hint">
+          {{ lastResult.context_report.notes.join('；') }}
+        </div>
+      </div>
+    </template>
+
+    <!-- ============ 知识库 ============ -->
+    <template v-if="tab==='docs'">
+      <h1>知识库</h1>
+      <div class="sub">导入 → 切分 → 向量化 → 建索引 → 混合检索，支持来源引用与增量更新。</div>
+
+      <div class="grid3">
+        <div class="stat"><div class="k">文档</div><div class="v">{{ (docs.stats && docs.stats.documents) || 0 }}</div></div>
+        <div class="stat"><div class="k">切片</div><div class="v">{{ (docs.stats && docs.stats.chunks) || 0 }}</div></div>
+        <div class="stat"><div class="k">向量维度</div><div class="v">{{ (docs.stats && docs.stats.embedder.dim) || 0 }}</div></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2>导入文档</h2>
+        <textarea v-model="docText" rows="4" placeholder="粘贴文本内容…"></textarea>
+        <div class="row" style="margin-top:9px">
+          <input v-model="docTitle" placeholder="标题（可选）" style="width:220px" />
+          <button class="primary" @click="addText">导入文本</button>
+          <input v-model="docPath" placeholder="或填入本地文件/目录路径" class="grow" />
+          <button @click="addPath">导入路径</button>
+          <button class="ghost" @click="loadSample">载入示例文档</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>检索测试 <span v-if="docs.trace" class="chip">{{ docs.trace.dense_hits }} 向量 / {{ docs.trace.sparse_hits }} BM25 → {{ docs.trace.fused_hits }} 融合</span></h2>
+        <div class="row">
+          <input class="grow" v-model="searchQuery" placeholder="输入检索问题" @keydown.enter="doSearch" />
+          <select v-model="searchMode" style="width:140px">
+            <option value="hybrid">混合</option><option value="dense">向量</option><option value="sparse">BM25</option>
+          </select>
+          <button class="primary" @click="doSearch">检索</button>
+        </div>
+        <table v-if="searchHits.length" style="margin-top:12px">
+          <thead><tr><th style="width:52px">#</th><th>来源</th><th style="width:88px">最终分</th><th style="width:140px">向量 / BM25</th><th>片段</th></tr></thead>
+          <tbody>
+            <tr v-for="(h,i) in searchHits" :key="h.chunk.chunk_id">
+              <td class="mono">{{ i+1 }}</td>
+              <td>{{ h.chunk.title }}<span class="chip" style="margin-left:6px">#{{ h.chunk.index }}</span></td>
+              <td class="mono">{{ h.score.toFixed(3) }}</td>
+              <td class="mono" style="color:var(--muted)">{{ fmt(h.dense_score) }} / {{ fmt(h.sparse_score) }}</td>
+              <td style="color:var(--muted)">{{ h.chunk.text.slice(0,110) }}…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>文档列表</h2>
+        <div v-if="!docs.documents || !docs.documents.length" class="empty">还没有任何文档。</div>
+        <table v-else>
+          <thead><tr><th>标题</th><th>来源</th><th style="width:70px">切片</th><th style="width:70px"></th></tr></thead>
+          <tbody>
+            <tr v-for="d in docs.documents" :key="d.doc_id">
+              <td>{{ d.title }}</td>
+              <td class="mono" style="color:var(--muted)">{{ d.source || '—' }}</td>
+              <td class="mono">{{ d.chunk_count }}</td>
+              <td><button class="ghost" @click="removeDoc(d.doc_id)">删除</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </template>
+
+    <!-- ============ 轨迹 ============ -->
+    <template v-if="tab==='traces'">
+      <h1>执行轨迹</h1>
+      <div class="sub">追踪 Agent 为什么这么做：节点顺序、工具调用、token 与延迟。</div>
+
+      <div class="grid3">
+        <div class="stat"><div class="k">轨迹数</div><div class="v">{{ agg.traces || 0 }}</div></div>
+        <div class="stat"><div class="k">平均耗时</div><div class="v">{{ (agg.avg_duration_ms||0).toFixed(0) }}<small>ms</small></div></div>
+        <div class="stat"><div class="k">平均 token</div><div class="v">{{ (agg.avg_tokens||0).toFixed(0) }}</div></div>
+      </div>
+
+      <div class="grid2" style="margin-top:14px">
+        <div class="card">
+          <h2>最近轨迹</h2>
+          <div v-if="!traces.length" class="empty">还没有执行记录。</div>
+          <table v-else>
+            <tbody>
+              <tr v-for="t in traces" :key="t.trace_id" style="cursor:pointer" @click="openTrace(t.trace_id)">
+                <td>{{ t.question.slice(0,34) }}…<div class="mono" style="color:var(--faint);font-size:11px">{{ t.trace_id }}</div></td>
+                <td style="width:70px"><span class="chip" :class="t.status==='ok'?'ok':'bad'">{{ t.status }}</span></td>
+                <td class="mono" style="width:74px">{{ (t.duration_ms||0).toFixed(0) }}ms</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h2>节点访问分布</h2>
+          <div v-if="!Object.keys(agg.node_visits||{}).length" class="empty">暂无数据。</div>
+          <div v-else class="kv">
+            <template v-for="(v,k) in agg.node_visits" :key="k">
+              <div class="k mono">{{ k }}</div><div>{{ v }} 次</div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="trace" class="card">
+        <h2>{{ trace.question }} <button class="ghost" @click="trace=null">收起</button></h2>
+        <div class="tl">
+          <div v-for="s in trace.spans" :key="s.span_id" class="it" :class="s.kind==='tool'?'tool':(s.kind==='llm'?'on':'')">
+            <b class="mono">{{ s.name }}</b>
+            <span class="chip" style="margin-left:6px">{{ s.kind }}</span>
+            <span class="mono" style="color:var(--muted);margin-left:6px">{{ s.duration_ms.toFixed(1) }}ms</span>
+            <span v-if="Object.keys(s.attributes).length" class="mono" style="color:var(--faint);margin-left:8px">{{ brief(s.attributes) }}</span>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ============ 上下文 ============ -->
+    <template v-if="tab==='context'">
+      <h1>上下文预算</h1>
+      <div class="sub">分区预算：任何一段超支都不允许挤占其他段的额度。</div>
+
+      <div class="card">
+        <h2>当前分配（总预算 {{ (status.context && status.context.token_budget) || 0 }} tokens）</h2>
+        <div class="bar" style="height:12px">
+          <span v-for="(v,k) in (status.context && status.context.allocation) || {}" :key="k"
+                :style="{width: pctAlloc(v)+'%', background: colorOf(k)}"></span>
+        </div>
+        <div class="legend">
+          <span v-for="(v,k) in (status.context && status.context.allocation) || {}" :key="k">
+            <i :style="{background: colorOf(k)}"></i>{{ k }} · {{ v }}
+          </span>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <h2>为什么必须分区</h2>
+          <div style="font-size:13px;color:var(--muted)">
+            所有信息共用一个总预算时，会出现「检索片段挤掉历史、历史挤掉检索」的连锁故障，
+            连系统提示这种绝对不能丢的内容也可能被裁掉。分区之后，每段只在自身额度内做取舍。
+          </div>
+        </div>
+        <div class="card">
+          <h2>四种压缩策略</h2>
+          <table>
+            <thead><tr><th>策略</th><th>特性</th><th style="width:60px">约束</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">none</td><td>基线，零损失但成本高</td><td><span class="chip ok">保留</span></td></tr>
+              <tr><td class="mono">sliding</td><td>最省，丢早期目标</td><td><span class="chip bad">丢失</span></td></tr>
+              <tr><td class="mono">summary</td><td>抽取式摘要旧轮次</td><td><span class="chip warn">可能丢</span></td></tr>
+              <tr><td class="mono">hybrid</td><td>钉住约束 + 摘要 + 近期原文</td><td><span class="chip ok">保留</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
+
+    <!-- ============ 评测 ============ -->
+    <template v-if="tab==='eval'">
+      <h1>评测对比</h1>
+      <div class="sub">同一组用例 × 多种配置，产出可量化的对比数据。</div>
+
+      <div class="card">
+        <div class="row">
+          <button class="primary" :disabled="evaluating" @click="runEval">
+            <span v-if="evaluating"><span class="spin"></span> 运行中</span><span v-else>运行评测</span>
+          </button>
+          <span class="hint">会用离线模型跑完整流程，约需数秒。</span>
+        </div>
+      </div>
+
+      <div v-if="evalResult">
+        <div v-if="evalResult.context_experiment" class="card">
+          <h2>压缩策略对比</h2>
+          <table>
+            <thead><tr><th>策略</th><th>压缩前</th><th>压缩后</th><th>压缩率</th><th>约束保留</th><th>事实保留</th><th>保留轮数</th><th>工具链</th></tr></thead>
+            <tbody>
+              <tr v-for="r in evalResult.context_experiment.rows" :key="r.strategy">
+                <td class="mono">{{ r.strategy }}</td>
+                <td class="mono">{{ r.tokens_before }}</td>
+                <td class="mono">{{ r.tokens_after }}</td>
+                <td class="mono">{{ (r.compression_ratio*100).toFixed(1) }}%</td>
+                <td><span class="chip" :class="r.constraint_retention>=0.99?'ok':(r.constraint_retention>0?'warn':'bad')">{{ (r.constraint_retention*100).toFixed(0) }}%</span></td>
+                <td><span class="chip" :class="r.fact_retention>=0.99?'ok':(r.fact_retention>0?'warn':'bad')">{{ (r.fact_retention*100).toFixed(0) }}%</span></td>
+                <td class="mono">{{ r.kept_turns }}</td>
+                <td>{{ r.tool_integrity_ok ? '完整' : '异常' }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="hint">压缩率低不等于好：必须同时看约束保留率。</div>
+        </div>
+
+        <div v-if="evalResult.agent_experiment" class="card">
+          <h2>检索策略对比</h2>
+          <table>
+            <thead><tr><th>配置</th><th>P@k</th><th>R@k</th><th>MRR</th><th>要点覆盖</th><th>工具命中</th><th>平均 token</th><th>平均延迟</th></tr></thead>
+            <tbody>
+              <tr v-for="(g,k) in evalResult.agent_experiment.groups" :key="k">
+                <td class="mono">{{ k }}</td>
+                <td class="mono">{{ fmt(g.precision_at_k) }}</td>
+                <td class="mono">{{ fmt(g.recall_at_k) }}</td>
+                <td class="mono">{{ fmt(g.mrr) }}</td>
+                <td class="mono">{{ fmt(g.answer_keyword_coverage) }}</td>
+                <td class="mono">{{ fmt(g.tool_match_rate) }}</td>
+                <td class="mono">{{ g.runs.avg_total_tokens.toFixed(0) }}</td>
+                <td class="mono">{{ g.runs.avg_latency_ms.toFixed(0) }}ms</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div v-else class="card"><div class="empty">点击「运行评测」开始。</div></div>
+    </template>
+
+    <!-- ============ 系统 ============ -->
+    <template v-if="tab==='system'">
+      <h1>系统状态</h1>
+      <div class="sub">各层实现、工具清单与工作流定义。</div>
+
+      <div class="grid2">
+        <div class="card">
+          <h2>组件</h2>
+          <div class="kv">
+            <div class="k">模型</div><div class="mono">{{ status.llm && status.llm.name }} · {{ status.llm && status.llm.model }}</div>
+            <div class="k">向量化</div><div class="mono">{{ status.embeddings && status.embeddings.name }} · {{ status.embeddings && status.embeddings.dim }} 维</div>
+            <div class="k">知识库</div><div class="mono">{{ status.knowledge && status.knowledge.documents }} 篇 / {{ status.knowledge && status.knowledge.chunks }} 切片</div>
+            <div class="k">长期记忆</div><div class="mono">{{ (status.memory && status.memory.long_term.total) || 0 }} 条</div>
+            <div class="k">技能</div><div class="mono">{{ (status.memory && status.memory.skills) || 0 }} 个</div>
+            <div class="k">代码仓库</div><div class="mono">{{ status.repo || '未配置' }}</div>
+          </div>
+          <div v-if="status.llm && status.llm.note" class="hint">{{ status.llm.note }}</div>
+        </div>
+        <div class="card">
+          <h2>工作流节点</h2>
+          <div class="row tight">
+            <span v-for="n in (status.workflow && status.workflow.nodes) || []" :key="n" class="chip brand">{{ n }}</span>
+          </div>
+          <div class="hint">
+            条件边：<span v-for="(m,k) in (status.workflow && status.workflow.conditional) || {}" :key="k" class="mono" style="margin-right:8px">{{ k }} → {{ Object.values(m).join(' / ') }}</span>
+          </div>
+          <div class="hint">最大步数 {{ status.workflow && status.workflow.max_steps }}；检查点启用以支持断点续跑。</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>已注册工具 <span class="chip">{{ tools.length }}</span></h2>
+        <table>
+          <thead><tr><th style="width:170px">名称</th><th>说明</th><th style="width:150px">标签</th></tr></thead>
+          <tbody>
+            <tr v-for="t in tools" :key="t.name">
+              <td class="mono">{{ t.name }}</td>
+              <td>{{ t.description }}</td>
+              <td><span v-for="tag in t.tags" :key="tag" class="chip" style="margin-right:4px">{{ tag }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Mermaid 工作流</h2>
+        <pre>{{ mermaid }}</pre>
+      </div>
+    </template>
+  </main>
+</div>
+
+<script src="./vendor/vue.global.prod.js"></script>
+<script>
+const { createApp, reactive, ref, computed, onMounted } = Vue;
+const PALETTE = { system:'#2f6df6', memory:'#7c5cff', retrieved:'#12b0a0', history:'#e0a800', tools:'#8a94a6', current:'#e2688a', recent:'#5aa9e6' };
+
+createApp({
+  setup(){
+    const tab = ref('chat');
+    const error = ref('');
+    const status = ref({});
+    const tools = ref([]);
+    const mermaid = ref('');
+    const tabs = [
+      {id:'chat', label:'对话', icon:'◍'},
+      {id:'docs', label:'知识库', icon:'▤'},
+      {id:'traces', label:'执行轨迹', icon:'≡'},
+      {id:'context', label:'上下文预算', icon:'▚'},
+      {id:'eval', label:'评测对比', icon:'◔'},
+      {id:'system', label:'系统状态', icon:'⚙'},
+    ];
+
+    async function api(path, payload, method){
+      const opts = { method: method || (payload ? 'POST' : 'GET'), headers:{'Content-Type':'application/json'} };
+      if (payload && opts.method !== 'GET') opts.body = JSON.stringify(payload);
+      const res = await fetch(path, opts);
+      const data = await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(data.error || ('请求失败：' + res.status));
+      return data;
+    }
+    function guard(p){ return p.catch(e=>{ error.value = e.message; setTimeout(()=>error.value='', 5000); }); }
+
+    /* ---------- 对话 ---------- */
+    const messages = ref([]);
+    const chatInput = ref('');
+    const chatMode = ref('hybrid');
+    const chatStrategy = ref('');
+    const sending = ref(false);
+    const live = ref([]);
+    const lastResult = ref(null);
+
+    async function send(){
+      const q = chatInput.value.trim(); if(!q || sending.value) return;
+      error.value='';
+      messages.value.push({role:'user', content:q});
+      chatInput.value=''; sending.value=true; live.value=[]; lastResult.value=null;
+      const idx = messages.value.push({role:'bot', content:'', streaming:true}) - 1;
+      try{
+        const res = await fetch('/api/chat/stream', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({question:q, strategy:chatStrategy.value, retrieval_mode:chatMode.value})
+        });
+        if(!res.ok || !res.body) throw new Error('服务端不支持流式响应');
+        const reader = res.body.getReader(); const dec = new TextDecoder(); let buf='';
+        while(true){
+          const {value, done} = await reader.read(); if(done) break;
+          buf += dec.decode(value, {stream:true});
+          const chunks = buf.split('\n\n'); buf = chunks.pop();
+          for(const block of chunks){
+            const line = block.split('\n').find(l=>l.startsWith('data: '));
+            if(!line) continue;
+            let ev; try{ ev = JSON.parse(line.slice(6)); }catch(e){ continue; }
+            if(ev.type === 'final'){
+              const r = ev.result;
+              lastResult.value = r;
+              messages.value[idx] = {
+                role:'bot', content: r.answer || '（无回答）',
+                meta: `${r.iterations} 轮 · ${(r.latency_ms/1000).toFixed(2)}s`,
+                citations: r.citations, tools: r.tool_executions
+              };
+            } else if(ev.type === 'error'){
+              messages.value[idx] = {role:'bot', content:'执行出错：' + ev.error};
+            } else {
+              live.value.push(ev);
+            }
+          }
+        }
+      }catch(e){
+        messages.value[idx] = {role:'bot', content:'执行失败：' + e.message};
+      }finally{
+        sending.value = false;
+        if(messages.value[idx] && messages.value[idx].streaming) messages.value[idx].streaming = false;
+      }
+    }
+    function resetChat(){ messages.value=[]; live.value=[]; lastResult.value=null; }
+
+    /* ---------- 知识库 ---------- */
+    const docs = ref({});
+    const docText = ref(''); const docTitle = ref(''); const docPath = ref('');
+    const searchQuery = ref(''); const searchMode = ref('hybrid'); const searchHits = ref([]);
+
+    async function loadDocs(){ docs.value = await api('/api/documents'); }
+    function addText(){ if(!docText.value.trim()) return; guard(api('/api/documents/add',{text:docText.value,title:docTitle.value}).then(()=>{docText.value='';docTitle.value='';loadDocs();})); }
+    function addPath(){ if(!docPath.value.trim()) return; guard(api('/api/documents/add',{path:docPath.value}).then(()=>{docPath.value='';loadDocs();})); }
+    async function loadSample(){ try{
+        const files = ['上下文工程指南.md','检索与重排序.md','Agent编排.md','记忆技能与评测.md'];
+        for(const f of files){ await api('/api/documents/add',{path:'examples/sample_docs/' + f}); }
+        await loadDocs();
+      }catch(e){ error.value = e.message; } }
+    function removeDoc(id){ guard(api('/api/documents/delete',{doc_id:id}).then(loadDocs)); }
+    function doSearch(){ if(!searchQuery.value.trim()) return; guard(api('/api/search',{query:searchQuery.value, mode:searchMode.value, top_k:5}).then(r=>{searchHits.value=r.hits;docs.value.trace=r.trace;})); }
+
+    /* ---------- 轨迹 ---------- */
+    const traces = ref([]); const agg = ref({}); const trace = ref(null);
+    async function loadTraces(){ const r = await api('/api/traces?limit=15'); traces.value=r.traces; agg.value=r.aggregate; }
+    function openTrace(id){ guard(api('/api/traces/get?trace_id='+encodeURIComponent(id)).then(r=>{trace.value=r;})); }
+
+    /* ---------- 评测 ---------- */
+    const evaluating = ref(false); const evalResult = ref(null);
+    function runEval(){ evaluating.value=true; error.value='';
+      api('/api/evaluate',{modes:['dense','sparse','hybrid']})
+        .then(r=>{ evalResult.value=r; })
+        .catch(e=>{ error.value=e.message; })
+        .finally(()=>{ evaluating.value=false; }); }
+
+    /* ---------- 工具 ---------- */
+    function go(id){ tab.value=id;
+      if(id==='docs') guard(loadDocs());
+      if(id==='traces') guard(loadTraces());
+      if(id==='system') guard(api('/api/workflow').then(r=>{mermaid.value=r.mermaid;}).then(()=>api('/api/tools')).then(r=>{tools.value=r.tools;}));
+    }
+    function fmt(v){ return (v===null||v===undefined) ? '—' : Number(v).toFixed(3); }
+    function pct(v){ const total = Object.values(lastResult.value.context_report.sections).reduce((a,b)=>a+b,0) || 1; return (v/total*100).toFixed(2); }
+    function pctAlloc(v){ const alloc = (status.value.context && status.value.context.allocation) || {}; const total = Object.values(alloc).reduce((a,b)=>a+b,0) || 1; return (v/total*100).toFixed(2); }
+    function colorOf(k){ return PALETTE[k] || '#8a94a6'; }
+    function brief(o){ return Object.entries(o).slice(0,4).map(([k,v])=> k+'='+(typeof v==='object'?JSON.stringify(v):String(v).slice(0,28))).join('  '); }
+    function evClass(e){ return e.type==='error' ? 'err' : (e.node && (e.node.startsWith('tool') || e.node==='tools') ? 'tool' : 'on'); }
+
+    onMounted(()=>{ guard(loadDocs());
+      api('/api/status').then(r=>{status.value=r;}).catch(e=>{error.value=e.message;}); });
+
+    return { tab, tabs, go, error, status, tools, mermaid,
+      messages, chatInput, chatMode, chatStrategy, sending, live, lastResult, send, resetChat,
+      docs, docText, docTitle, docPath, addText, addPath, loadSample, removeDoc,
+      searchQuery, searchMode, searchHits, doSearch,
+      traces, agg, trace, openTrace,
+      evaluating, evalResult, runEval,
+      fmt, pct, pctAlloc, colorOf, brief, evClass };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
